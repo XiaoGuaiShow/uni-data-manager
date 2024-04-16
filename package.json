@@ -1,8 +1,8 @@
 {
   "name": "uni-data-manager",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "A data management utility for uni-app applications",
-  "main": "dist/main.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack"

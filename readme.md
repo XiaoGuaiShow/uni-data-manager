@@ -6,12 +6,20 @@ These modules are responsible for managing data within the application. They are
 
 This library is designed for the uni-app environment. If you want to use it in other environments, you may need to make some modifications. For example, you might need to replace `uni.setStorageSync` with `localStorage.setItem` if you're running in a standard web environment.
 
+## Installing the Modules
+
+You can install the modules in your project like this:
+
+```bash
+npm install uni-data-manager
+```
+
 ## Importing the Modules
 
 You can import the modules in your JavaScript files like this:
 
 ```javascript
-import DataManager from './utils/dataManager';
+import DataManager from 'uni-data-manager';
 const dataManager = new DataManager();
 ```
 
