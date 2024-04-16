@@ -1,7 +1,6 @@
 # Ignore everything
-*
-
-# But not dist directory
-!dist/
-
-!readme.md
+src/
+.gitignore
+.npmignore
+webpack.config.js
+package-lock.json
