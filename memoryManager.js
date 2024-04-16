@@ -1,7 +1,7 @@
 class MemoryManager {
   constructor() {
     this.memoryData = {};
-    this.maxMemoryDataSizeBytes = 1024 * 1024 * 10; // 10MB
+    this._maxMemoryDataSizeBytes = 1024 * 1024 * 10; // 10MB
   }
 
   setMemoryData(key, value) {
@@ -33,7 +33,7 @@ class MemoryManager {
 
   checkMemoryDataSize() {
     const currentCacheSizeBytes = new TextEncoder().encode(JSON.stringify(this.memoryData)).length;
-    if (currentCacheSizeBytes > this.maxMemoryDataSizeBytes) {
+    if (currentCacheSizeBytes > this._maxMemoryDataSizeBytes) {
       console.error('Memory data size exceeded. Consider removing unused data to free up memory.');
     }
   }

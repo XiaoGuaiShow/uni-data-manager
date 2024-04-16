@@ -1,14 +1,11 @@
 class IndexedDBManager {
   constructor() {
-    this.dbName = 'ceekeeDB';
+    this.dbName = 'uni-data-manager';
     this.dbVersion = 1;
     this.db = null;
   }
 
-  async openDB() {
-    if (this.db) {
-      return this.db;
-    }
+  openDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
       request.onerror = (event) => {
@@ -17,20 +14,24 @@ class IndexedDBManager {
       };
       request.onsuccess = (event) => {
         this.db = event.target.result;
-        this.createObjectStore('globalData');
+        console.log('onOpenSuccess', this.db)
         resolve(this.db);
       };
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = async (event) => {
         this.db = event.target.result;
+
+        console.log('onupgradeneeded', this.db)
+        await this.createObjectStore('globalData');
         resolve(this.db);
       };
     });
   }
 
-  async closeDB() {
+  closeDB() {
     return new Promise((resolve, reject) => {
       if (this.db) {
         this.db.close();
+        this.db = null;
         resolve();
       } else {
         reject('DB is not open.');
@@ -38,8 +39,8 @@ class IndexedDBManager {
     });
   }
 
-  async clearDB() {
-    return new Promise(async (resolve, reject) => {
+  clearDB() {
+    return new Promise((resolve, reject) => {
       if (this.db) {
         const objectStoreNames = this.db.objectStoreNames;
         for (let i = 0; i < objectStoreNames.length; i++) {
@@ -53,7 +54,9 @@ class IndexedDBManager {
   }
 
   async createObjectStore(storeName) {
-    await this.openDB();
+    if (!this.db) {
+      await this.openDB();
+    }
     return new Promise(async (resolve) => {
       if (this.db.objectStoreNames.contains(storeName)) {
         resolve();
@@ -65,7 +68,9 @@ class IndexedDBManager {
   }
 
   async deleteObjectStore(storeName) {
-    await this.openDB();
+    if (!this.db) {
+      await this.openDB();
+    }
     return new Promise(async (resolve) => {
       if (this.db.objectStoreNames.contains(storeName)) {
         this.db.deleteObjectStore(storeName);
@@ -77,7 +82,9 @@ class IndexedDBManager {
   }
 
   async setDBData(storeName, key, value) {
-    await this.openDB();
+    if (!this.db) {
+      await this.openDB();
+    }
     return new Promise(async (resolve) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);
@@ -87,7 +94,9 @@ class IndexedDBManager {
   }
 
   async getDBData(storeName, key) {
-    await this.openDB();
+    if (!this.db) {
+      await this.openDB();
+    }
     return new Promise(async (resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readonly');
       const objectStore = transaction.objectStore(storeName);
@@ -96,13 +105,16 @@ class IndexedDBManager {
         reject(event.target.error);
       };
       request.onsuccess = (event) => {
+        console.log('getDBData', event.target.result)
         resolve(event.target.result);
       };
     });
   }
 
   async removeDBData(storeName, key) {
-    await this.openDB();
+    if (!this.db) {
+      await this.openDB();
+    }
     return new Promise(async (resolve) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);

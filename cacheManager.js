@@ -9,11 +9,11 @@ class CacheManager extends IndexedDBManager {
   async setCacheData(key, value) {
     try {
       const currentDataSizeBytes = new TextEncoder().encode(JSON.stringify(value)).length;
-      if (uni.canIUse('indexedDB') && currentDataSizeBytes > this._upgradeDataSizeBytes) {
+      if (typeof indexedDB !== 'undefined' && currentDataSizeBytes > this._upgradeDataSizeBytes) {
         await this.setDBData('globalData', key, {...value, _isUpgrade: true});
       } else {
         const { isUpgrade } = this.checkCacheDataSize();
-        if (uni.canIUse('indexedDB') && isUpgrade) {
+        if (typeof indexedDB !== 'undefined' && isUpgrade) {
           await this.setDBData('globalData', key, {...value, _isUpgrade: true});
           console.error('Cache data size exceeded. Data is automatically upgraded to the indexedDB.');
         } else {
@@ -25,27 +25,31 @@ class CacheManager extends IndexedDBManager {
     }
   }
 
-  async getCacheData(key) {
+  getCacheData(key) {
     try {
       const value = uni.getStorageSync(key);
       if (value) {
         return JSON.parse(value);
-      } else if (uni.canIUse('indexedDB')) {
-        const dbData = await this.getDBData('globalData', key);
-        if (dbData && dbData._isUpgrade) {
-          delete dbData._isUpgrade;
-          return dbData;
-        }
+      } else if (typeof indexedDB !== 'undefined') {
+        return this.getDBData('globalData', key).then(dbData => {
+          if (dbData && dbData._isUpgrade) {
+            delete dbData._isUpgrade;
+            return dbData;
+          }
+        });
+      } else {
+        return {};
       }
     } catch (e) {
       console.error('Failed to get cache data:', e);
     }
   }
 
-  async getOnceCacheData(key) {
+  getOnceCacheData(key) {
     const value = this.getCacheData(key);
-    await this.removeCacheData(key);
-    return value;
+    return this.removeCacheData(key).then(() => {
+      return value;
+    });
   }
 
   async removeCacheData(key) {
@@ -53,7 +57,7 @@ class CacheManager extends IndexedDBManager {
       const value = uni.getStorageSync(key);
       if (value) {
         uni.removeStorageSync(key);
-      } else if (uni.canIUse('indexedDB')) {
+      } else if (typeof indexedDB !== 'undefined') {
         const dbData = await this.getDBData('globalData', key);
         if (dbData && dbData._isUpgrade) {
           await this.removeDBData('globalData', key);
@@ -67,7 +71,7 @@ class CacheManager extends IndexedDBManager {
   clearCacheData() {
     try {
       uni.clearStorageSync();
-      if (uni.canIUse('indexedDB')) {
+      if (typeof indexedDB !== 'undefined') {
         // TODO 删除DB里所有_isUpgrade为true的数据
       }
     } catch (e) {
