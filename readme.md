@@ -75,6 +75,10 @@ let cacheDataInfo = dataManager.getCacheDataInfo();
 
 The `CacheManager` module has an automatic upgrade feature. When the size of the cache data exceeds a certain limit (5MB by default), or when a single piece of data is larger than a certain size (1MB by default), the data is automatically upgraded to IndexedDB. This is done to prevent the cache data size from exceeding the limit and causing memory issues. The data that is upgraded to IndexedDB is marked with an `_isUpgrade` property set to `true`.
 
+### CacheManager Fallback Instructions
+
+The `CacheManager` module has a fallback feature for environments where `uni.setStorageSync` is not available. When the CacheManager tries to perform an operation that requires uni.setStorageSync (such as setting, getting, or removing data from the cache), it first checks if uni.setStorageSync is available. If uni.setStorageSync is not available, the CacheManager will automatically fallback to using `localStorage` for these operations.  This means that even in environments where uni.setStorageSync is not supported, the CacheManager can still manage data using localStorage. However, please note that localStorage has a smaller storage limit compared to uni.setStorageSync, so it's recommended to use uni.setStorageSync where possible for larger amounts of data.
+
 ## Using the IndexedDBManager
 
 The `IndexedDBManager` module is responsible for managing IndexedDB data within the application. Here's how you can use its methods:
