@@ -1,7 +1,7 @@
 import MemoryManager from './memoryManager';
 import CacheManager from './cacheManager';
 
-const mixinClass = (base, ...mixins) => {
+export const mixinClass = (base, ...mixins) => {
   class baseWithMixins extends base {
     constructor(...args) {
       super(...args);

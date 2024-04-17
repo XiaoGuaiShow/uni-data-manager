@@ -2,8 +2,8 @@
 src/
 
 .idea/
-.gitignore
+.babelrc
 .npmignore
-
-webpack.config.js
+.gitignore
 package-lock.json
+webpack.config.js

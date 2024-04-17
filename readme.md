@@ -116,4 +116,3 @@ let dbDataInfo = dataManager.getDBDataInfo('storeName');
 The `DataManager` module has a fallback feature for environments where IndexedDB is not available. When the `DataManager` tries to perform an operation that requires IndexedDB (such as setting, getting, or removing data from the database), it first checks if IndexedDB is available. If IndexedDB is not available, the `DataManager` will automatically fallback to using the `CacheManager` for these operations.
 
 This means that even in environments where IndexedDB is not supported, the `DataManager` can still manage data using the cache. However, please note that the cache has a smaller storage limit compared to IndexedDB, so it's recommended to use IndexedDB where possible for larger amounts of data.
-```

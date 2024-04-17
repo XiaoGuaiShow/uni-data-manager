@@ -14,13 +14,10 @@ class IndexedDBManager {
       };
       request.onsuccess = (event) => {
         this.db = event.target.result;
-        console.log('onOpenSuccess', this.db)
         resolve(this.db);
       };
       request.onupgradeneeded = async (event) => {
         this.db = event.target.result;
-
-        console.log('onupgradeneeded', this.db)
         await this.createObjectStore('globalData');
         resolve(this.db);
       };
@@ -84,6 +81,9 @@ class IndexedDBManager {
   async setDBData(storeName, key, value) {
     if (!this.db) {
       await this.openDB();
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        await this.createObjectStore(storeName);
+      }
     }
     return new Promise(async (resolve) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
@@ -96,6 +96,9 @@ class IndexedDBManager {
   async getDBData(storeName, key) {
     if (!this.db) {
       await this.openDB();
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        await this.createObjectStore(storeName);
+      }
     }
     return new Promise(async (resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readonly');
@@ -105,7 +108,6 @@ class IndexedDBManager {
         reject(event.target.error);
       };
       request.onsuccess = (event) => {
-        console.log('getDBData', event.target.result)
         resolve(event.target.result);
       };
     });
@@ -114,6 +116,9 @@ class IndexedDBManager {
   async removeDBData(storeName, key) {
     if (!this.db) {
       await this.openDB();
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        await this.createObjectStore(storeName);
+      }
     }
     return new Promise(async (resolve) => {
       const transaction = this.db.transaction(storeName, 'readwrite');

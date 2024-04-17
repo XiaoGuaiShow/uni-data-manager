@@ -1,5 +1,8 @@
 import IndexedDBManager from "./indexedDBManager";
-class CacheManager extends IndexedDBManager {
+import LocalStorageManager from "./localStorageManager";
+import { mixinClass } from "./index";
+
+class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
   constructor() {
     super();
     this._maxCacheDataSizeBytes = 1024 * 1024 * 5; // 5MB
@@ -16,8 +19,10 @@ class CacheManager extends IndexedDBManager {
         if (typeof indexedDB !== 'undefined' && isUpgrade) {
           await this.setDBData('globalData', key, {...value, _isUpgrade: true});
           console.error('Cache data size exceeded. Data is automatically upgraded to the indexedDB.');
-        } else {
+        } else if (typeof uni !== 'undefined' && typeof uni.setStorageSync === 'function') {
           uni.setStorageSync(key, JSON.stringify(value));
+        } else {
+          this.setLocalStorage(key, JSON.stringify(value));
         }
       }
     } catch (e) {
@@ -27,19 +32,21 @@ class CacheManager extends IndexedDBManager {
 
   getCacheData(key) {
     try {
-      const value = uni.getStorageSync(key);
-      if (value) {
-        return JSON.parse(value);
-      } else if (typeof indexedDB !== 'undefined') {
+      if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
+        const value = uni.getStorageSync(key);
+        if (value) {
+          return JSON.parse(value);
+        }
+      }
+      if (typeof indexedDB !== 'undefined') {
         return this.getDBData('globalData', key).then(dbData => {
           if (dbData && dbData._isUpgrade) {
             delete dbData._isUpgrade;
             return dbData;
           }
         });
-      } else {
-        return {};
       }
+      return JSON.parse(this.getLocalStorage(key)) || {};
     } catch (e) {
       console.error('Failed to get cache data:', e);
     }
@@ -54,13 +61,23 @@ class CacheManager extends IndexedDBManager {
 
   async removeCacheData(key) {
     try {
-      const value = uni.getStorageSync(key);
-      if (value) {
-        uni.removeStorageSync(key);
-      } else if (typeof indexedDB !== 'undefined') {
-        const dbData = await this.getDBData('globalData', key);
-        if (dbData && dbData._isUpgrade) {
-          await this.removeDBData('globalData', key);
+      let value = null;
+      if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
+        value = uni.getStorageSync(key);
+        if (value) {
+          uni.removeStorageSync(key);
+        }
+      }
+      if (!value) {
+        if (typeof indexedDB !== 'undefined') {
+          const dbData = await this.getDBData('globalData', key);
+          if (dbData && dbData._isUpgrade) {
+            await this.removeDBData('globalData', key);
+          } else {
+            this.removeLocalStorage(key);
+          }
+        } else {
+          this.removeLocalStorage(key);
         }
       }
     } catch (e) {
@@ -70,9 +87,10 @@ class CacheManager extends IndexedDBManager {
 
   clearCacheData() {
     try {
-      uni.clearStorageSync();
-      if (typeof indexedDB !== 'undefined') {
-        // TODO 删除DB里所有_isUpgrade为true的数据
+      if (typeof uni !== 'undefined' && typeof uni.clearStorageSync === 'function') {
+        uni.clearStorageSync();
+      } else {
+        this.clearLocalStorage();
       }
     } catch (e) {
       console.error('Failed to clear cache data:', e);
@@ -81,12 +99,16 @@ class CacheManager extends IndexedDBManager {
 
   getCacheDataInfo() {
     try {
-      const keys = uni.getStorageInfoSync().keys;
-      const cacheData = {};
-      keys.forEach((key) => {
-        cacheData[key] = this.getCacheData(key);
-      });
-      return cacheData;
+      if (typeof uni !== 'undefined' && typeof uni.getStorageInfoSync === 'function') {
+        const keys = uni.getStorageInfoSync().keys;
+        const cacheData = {};
+        keys.forEach((key) => {
+          cacheData[key] = this.getCacheData(key);
+        });
+        return cacheData;
+      } else {
+        return this.getLocalStorageInfo();
+      }
     } catch (e) {
       console.error('Failed to get cache data info:', e);
     }
@@ -94,12 +116,19 @@ class CacheManager extends IndexedDBManager {
 
   checkCacheDataSize() {
     try {
-      const isApp = uni.getSystemInfoSync().uniPlatform === 'app';
-      const keys = uni.getStorageInfoSync().keys;
-      const currentCacheSizeBytes = keys.reduce((total, key) => {
-        return total + new TextEncoder().encode(uni.getStorageSync(key)).length;
-      }, 0);
-      if (!isApp && currentCacheSizeBytes > this._maxCacheDataSizeBytes) {
+      if (typeof uni !== 'undefined' && typeof uni.getStorageInfoSync === 'function') {
+        const isApp = uni.getSystemInfoSync().uniPlatform === 'app';
+        const keys = uni.getStorageInfoSync().keys;
+        const currentCacheSizeBytes = keys.reduce((total, key) => {
+          return total + new TextEncoder().encode(uni.getStorageSync(key)).length;
+        }, 0);
+        if (!isApp && currentCacheSizeBytes > this._maxCacheDataSizeBytes) {
+          console.error('Cache data size exceeded. Consider removing unused data to free up memory.');
+          return { isUpgrade: true };
+        }
+      }
+      const currentLocalStorageSizeBytes = new TextEncoder().encode(JSON.stringify(this.getLocalStorageInfo())).length;
+      if (currentLocalStorageSizeBytes > this._maxCacheDataSizeBytes) {
         console.error('Cache data size exceeded. Consider removing unused data to free up memory.');
         return { isUpgrade: true };
       }
