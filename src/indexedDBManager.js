@@ -19,7 +19,9 @@ class IndexedDBManager {
       request.onupgradeneeded = async (event) => {
         this.db = event.target.result;
         await this.createObjectStore('globalData');
-        resolve(this.db);
+        event.target.transaction.oncomplete = (event) => {
+          resolve(this.db);
+        }
       };
     });
   }
@@ -81,10 +83,12 @@ class IndexedDBManager {
   async setDBData(storeName, key, value) {
     if (!this.db) {
       await this.openDB();
+      console.log(2, this.db)
       if (!this.db.objectStoreNames.contains(storeName)) {
         await this.createObjectStore(storeName);
       }
     }
+    console.log(3, this.db)
     return new Promise(async (resolve) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);

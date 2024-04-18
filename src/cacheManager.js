@@ -1,6 +1,6 @@
 import IndexedDBManager from "./indexedDBManager";
 import LocalStorageManager from "./localStorageManager";
-import { mixinClass } from "./index";
+import mixinClass from './mixinClass';
 
 class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
   constructor() {
@@ -30,7 +30,7 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
     }
   }
 
-  getCacheData(key) {
+  async getCacheData(key) {
     try {
       if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
         const value = uni.getStorageSync(key);
@@ -39,12 +39,11 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
         }
       }
       if (typeof indexedDB !== 'undefined') {
-        return this.getDBData('globalData', key).then(dbData => {
-          if (dbData && dbData._isUpgrade) {
-            delete dbData._isUpgrade;
-            return dbData;
-          }
-        });
+        const dbData = await this.getDBData('globalData', key)
+        if (dbData && dbData._isUpgrade) {
+          delete dbData._isUpgrade;
+          return dbData;
+        }
       }
       return JSON.parse(this.getLocalStorage(key)) || {};
     } catch (e) {
