@@ -1,6 +1,6 @@
 {
   "name": "uni-data-manager",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "A data management utility for uni-app applications",
   "main": "dist/uni-data-manager.js",
   "unpkg": "dist/uni-data-manager.min.js",
