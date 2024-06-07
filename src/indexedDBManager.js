@@ -1,8 +1,5 @@
 class IndexedDBManager {
   constructor() {
-    this.dbName = 'uni-data-manager';
-    this.dbVersion = 1;
-    this.db = null;
   }
 
   openDB() {
@@ -161,5 +158,7 @@ class IndexedDBManager {
     });
   }
 }
-
+IndexedDBManager.prototype.dbName = 'uni-data-manager';
+IndexedDBManager.prototype.dbVersion = 1;
+IndexedDBManager.prototype.db = null;
 export default IndexedDBManager;

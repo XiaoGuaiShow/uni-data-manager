@@ -49,6 +49,8 @@ let memoryDataInfo = dataManager.getMemoryDataInfo();
 
 ## Using the CacheManager
 
+Use async/await syntax to call the `setCacheData` and `getCacheData` methods.
+
 The `CacheManager` module is responsible for managing cache data within the application. Here's how you can use its methods:
 
 ```javascript
@@ -80,6 +82,8 @@ The `CacheManager` module has an automatic upgrade feature. When the size of the
 The `CacheManager` module has a fallback feature for environments where `uni.setStorageSync` is not available. When the CacheManager tries to perform an operation that requires uni.setStorageSync (such as setting, getting, or removing data from the cache), it first checks if uni.setStorageSync is available. If uni.setStorageSync is not available, the CacheManager will automatically fallback to using `localStorage` for these operations.  This means that even in environments where uni.setStorageSync is not supported, the CacheManager can still manage data using localStorage. However, please note that localStorage has a smaller storage limit compared to uni.setStorageSync, so it's recommended to use uni.setStorageSync where possible for larger amounts of data.
 
 ## Using the IndexedDBManager
+
+Use async/await syntax to call the `setDBData` and `getDBData` methods.
 
 The `IndexedDBManager` module is responsible for managing IndexedDB data within the application. Here's how you can use its methods:
 

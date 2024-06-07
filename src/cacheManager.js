@@ -1,17 +1,16 @@
 import IndexedDBManager from "./indexedDBManager";
 import LocalStorageManager from "./localStorageManager";
 import mixinClass from './mixinClass';
+import { getStringSize } from "./utils";
 
 class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
   constructor() {
     super();
-    this._maxCacheDataSizeBytes = 1024 * 1024 * 5; // 5MB
-    this._upgradeDataSizeBytes = 1024 * 1024; // 1MB
   }
 
   async setCacheData(key, value) {
     try {
-      const currentDataSizeBytes = new TextEncoder().encode(JSON.stringify(value)).length;
+      const currentDataSizeBytes = getStringSize(JSON.stringify(value));
       if (typeof indexedDB !== 'undefined' && currentDataSizeBytes > this._upgradeDataSizeBytes) {
         await this.setDBData('globalData', key, {...value, _isUpgrade: true});
       } else {
@@ -33,17 +32,15 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
   async getCacheData(key) {
     try {
       if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
-        const value = uni.getStorageSync(key);
-        if (value) {
-          return JSON.parse(value);
-        }
+        const value = uni.getStorageSync(key) || '{}';
+        return JSON.parse(value);
       }
       if (typeof indexedDB !== 'undefined') {
         const dbData = await this.getDBData('globalData', key)
-        if (dbData && dbData._isUpgrade) {
+        if (dbData._isUpgrade) {
           delete dbData._isUpgrade;
-          return dbData;
         }
+        return dbData;
       }
       return JSON.parse(this.getLocalStorage(key)) || {};
     } catch (e) {
@@ -119,14 +116,14 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
         const isApp = uni.getSystemInfoSync().uniPlatform === 'app';
         const keys = uni.getStorageInfoSync().keys;
         const currentCacheSizeBytes = keys.reduce((total, key) => {
-          return total + new TextEncoder().encode(uni.getStorageSync(key)).length;
+          return total + getStringSize(JSON.stringify(uni.getStorageSync(key)));
         }, 0);
         if (!isApp && currentCacheSizeBytes > this._maxCacheDataSizeBytes) {
           console.error('Cache data size exceeded. Consider removing unused data to free up memory.');
           return { isUpgrade: true };
         }
       }
-      const currentLocalStorageSizeBytes = new TextEncoder().encode(JSON.stringify(this.getLocalStorageInfo())).length;
+      const currentLocalStorageSizeBytes = getStringSize(JSON.stringify(this.getLocalStorageInfo()));
       if (currentLocalStorageSizeBytes > this._maxCacheDataSizeBytes) {
         console.error('Cache data size exceeded. Consider removing unused data to free up memory.');
         return { isUpgrade: true };
@@ -137,5 +134,6 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
     }
   }
 }
-
+CacheManager.prototype._maxCacheDataSizeBytes = 1024 * 1024 * 5; // 5MB
+CacheManager.prototype._upgradeDataSizeBytes = 1024 * 1024; // 1MB
 export default CacheManager;

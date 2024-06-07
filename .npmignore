@@ -1,5 +1,4 @@
 # Ignore everything
-src/
 
 .idea/
 .babelrc

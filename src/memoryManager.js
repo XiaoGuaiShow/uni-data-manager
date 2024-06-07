@@ -1,7 +1,7 @@
+import {getStringSize} from "./utils";
+
 class MemoryManager {
   constructor() {
-    this.memoryData = {};
-    this._maxMemoryDataSizeBytes = 1024 * 1024 * 10; // 10MB
   }
 
   setMemoryData(key, value) {
@@ -32,11 +32,12 @@ class MemoryManager {
   }
 
   checkMemoryDataSize() {
-    const currentCacheSizeBytes = new TextEncoder().encode(JSON.stringify(this.memoryData)).length;
+    const currentCacheSizeBytes = getStringSize(JSON.stringify(this.memoryData));
     if (currentCacheSizeBytes > this._maxMemoryDataSizeBytes) {
       console.error('Memory data size exceeded. Consider removing unused data to free up memory.');
     }
   }
 }
-
+MemoryManager.prototype.memoryData = {};
+MemoryManager.prototype._maxMemoryDataSizeBytes = 1024 * 1024 * 10; // 10MB
 export default MemoryManager;
