@@ -32,14 +32,14 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
   async getCacheData(key) {
     try {
       if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
-        const value = uni.getStorageSync(key) || '{}';
+        const value = uni.getStorageSync(key);
         if (value) {
           return JSON.parse(value);
         }
       }
       if (typeof indexedDB !== 'undefined') {
         const dbData = await this.getDBData('globalData', key)
-        if (dbData._isUpgrade) {
+        if (dbData && dbData._isUpgrade) {
           delete dbData._isUpgrade;
           return dbData;
         }
