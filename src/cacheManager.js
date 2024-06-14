@@ -33,16 +33,22 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
     try {
       if (typeof uni !== 'undefined' && typeof uni.getStorageSync === 'function') {
         const value = uni.getStorageSync(key) || '{}';
-        return JSON.parse(value);
+        if (value) {
+          return JSON.parse(value);
+        }
       }
       if (typeof indexedDB !== 'undefined') {
         const dbData = await this.getDBData('globalData', key)
         if (dbData._isUpgrade) {
           delete dbData._isUpgrade;
+          return dbData;
         }
-        return dbData;
       }
-      return JSON.parse(this.getLocalStorage(key)) || {};
+      if (typeof localStorage !== 'undefined') {
+        return JSON.parse(this.getLocalStorage(key)) || {};
+      }
+
+      return {};
     } catch (e) {
       console.error('Failed to get cache data:', e);
     }
