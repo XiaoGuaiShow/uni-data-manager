@@ -124,7 +124,9 @@ class CacheManager extends mixinClass(IndexedDBManager, LocalStorageManager) {
         const currentCacheSizeBytes = keys.reduce((total, key) => {
           return total + getStringSize(JSON.stringify(uni.getStorageSync(key)));
         }, 0);
-        if (!isApp && currentCacheSizeBytes > this._maxCacheDataSizeBytes) {
+        if (isApp) {
+          return { isUpgrade: false };
+        } else if (currentCacheSizeBytes > this._maxCacheDataSizeBytes) {
           console.error('Cache data size exceeded. Consider removing unused data to free up memory.');
           return { isUpgrade: true };
         }
