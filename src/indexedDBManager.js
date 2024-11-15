@@ -1,164 +1,166 @@
 class IndexedDBManager {
   constructor() {
+    this.dbName = 'uni-data-manager';
+    this.dbVersion = 1;
+    this.db = null;
   }
 
-  openDB() {
-    return new Promise((resolve, reject) => {
+  async openDB() {
+    if (this.db) return this.db; // 如果数据库已打开，直接返回
+    return new Promise((resolve) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
-      request.onerror = (event) => {
-        console.error('Failed to open DB:', event.target.error);
-        reject(event.target.error);
-      };
+
       request.onsuccess = (event) => {
         this.db = event.target.result;
+        this.db.onversionchange = () => {
+          console.warn('Database version has changed. Closing DB.');
+          this.closeDB();
+        };
         resolve(this.db);
       };
-      request.onupgradeneeded = async (event) => {
+
+      request.onerror = (event) => {
+        console.error('Failed to open DB:', event.target.error);
+        resolve(null); // 避免阻塞操作
+      };
+
+      request.onupgradeneeded = (event) => {
         this.db = event.target.result;
-        await this.createObjectStore('globalData');
-        event.target.transaction.oncomplete = (event) => {
-          resolve(this.db);
+        if (!this.db.objectStoreNames.contains('globalData')) {
+          this.db.createObjectStore('globalData'); // 初始化对象存储
         }
+        resolve(this.db);
       };
     });
   }
 
   closeDB() {
-    return new Promise((resolve, reject) => {
-      if (this.db) {
-        this.db.close();
-        this.db = null;
-        resolve();
-      } else {
-        reject('DB is not open.');
-      }
-    });
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
   }
 
-  clearDB() {
-    return new Promise((resolve, reject) => {
-      if (this.db) {
-        const objectStoreNames = this.db.objectStoreNames;
-        for (let i = 0; i < objectStoreNames.length; i++) {
-          this.db.deleteObjectStore(objectStoreNames[i]);
-        }
-        resolve();
-      } else {
-        reject('DB is not open.');
-      }
-    });
+  async ensureDBReady() {
+    if (!this.db) await this.openDB();
+    if (!this.db) throw new Error('Database connection is not available.');
   }
 
   async createObjectStore(storeName) {
-    if (!this.db) {
-      await this.openDB();
+    if (!this.db) await this.openDB();
+    if (this.db && !this.db.objectStoreNames.contains(storeName)) {
+      await this.closeDB(); // 必须关闭连接以进行版本升级
+      return new Promise((resolve) => {
+        const request = indexedDB.open(this.dbName, this.db.version + 1);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          db.createObjectStore(storeName);
+        };
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => {
+          console.error(`Error creating object store "${storeName}":`, event.target.error);
+          resolve();
+        };
+      });
     }
-    return new Promise(async (resolve) => {
-      if (this.db.objectStoreNames.contains(storeName)) {
-        resolve();
-      } else {
-        this.db.createObjectStore(storeName);
-        resolve();
-      }
-    });
-  }
-
-  async deleteObjectStore(storeName) {
-    if (!this.db) {
-      await this.openDB();
-    }
-    return new Promise(async (resolve) => {
-      if (this.db.objectStoreNames.contains(storeName)) {
-        this.db.deleteObjectStore(storeName);
-        resolve();
-      } else {
-        resolve();
-      }
-    });
   }
 
   async setDBData(storeName, key, value) {
-    if (!this.db) {
-      await this.openDB();
-      if (!this.db.objectStoreNames.contains(storeName)) {
-        await this.createObjectStore(storeName);
-      }
-    }
-    return new Promise(async (resolve) => {
+    try {
+      await this.ensureDBReady();
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);
       objectStore.put(value, key);
-      resolve();
-    });
+    } catch (error) {
+      if (error.name === 'InvalidStateError') {
+        console.warn('Database connection was closed. Reopening...');
+        await this.openDB(); // 重新打开连接
+        return this.setDBData(storeName, key, value); // 重试操作
+      }
+      console.error('Failed to set data:', error);
+    }
   }
 
   async getDBData(storeName, key) {
-    if (!this.db) {
-      await this.openDB();
-      if (!this.db.objectStoreNames.contains(storeName)) {
-        await this.createObjectStore(storeName);
-      }
-    }
-    return new Promise(async (resolve, reject) => {
+    try {
+      await this.ensureDBReady();
       const transaction = this.db.transaction(storeName, 'readonly');
       const objectStore = transaction.objectStore(storeName);
-      const request = objectStore.get(key);
-      request.onerror = (event) => {
-        reject(event.target.error);
-      };
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-    });
+      return new Promise((resolve, reject) => {
+        const request = objectStore.get(key);
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => {
+          console.error('Failed to get data:', event.target.error);
+          resolve(null); // 返回空值而不是阻塞
+        };
+      });
+    } catch (error) {
+      console.error('Failed to get data:', error);
+      return null;
+    }
   }
 
   async removeDBData(storeName, key) {
-    if (!this.db) {
-      await this.openDB();
-      if (!this.db.objectStoreNames.contains(storeName)) {
-        await this.createObjectStore(storeName);
-      }
-    }
-    return new Promise(async (resolve) => {
+    try {
+      await this.ensureDBReady();
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);
       objectStore.delete(key);
-      resolve();
-    });
+    } catch (error) {
+      if (error.name === 'InvalidStateError') {
+        console.warn('Database connection was closed. Reopening...');
+        await this.openDB();
+        return this.removeDBData(storeName, key); // 重试操作
+      }
+      console.error('Failed to remove data:', error);
+    }
   }
 
   async clearDBData(storeName) {
-    return new Promise(async (resolve, reject) => {
-      if (this.db) {
-        const transaction = this.db.transaction(storeName, 'readwrite');
-        const objectStore = transaction.objectStore(storeName);
-        objectStore.clear();
-        resolve();
-      } else {
-        reject('DB is not open.');
+    try {
+      await this.ensureDBReady();
+      const transaction = this.db.transaction(storeName, 'readwrite');
+      const objectStore = transaction.objectStore(storeName);
+      objectStore.clear();
+    } catch (error) {
+      if (error.name === 'InvalidStateError') {
+        console.warn('Database connection was closed. Reopening...');
+        await this.openDB();
+        return this.clearDBData(storeName); // 重试操作
       }
-    });
+      console.error('Failed to clear data:', error);
+    }
   }
 
   async getDBDataInfo(storeName) {
-    return new Promise(async (resolve, reject) => {
-      if (this.db) {
-        const transaction = this.db.transaction(storeName, 'readonly');
-        const objectStore = transaction.objectStore(storeName);
+    try {
+      await this.ensureDBReady();
+      const transaction = this.db.transaction(storeName, 'readonly');
+      const objectStore = transaction.objectStore(storeName);
+      return new Promise((resolve, reject) => {
         const request = objectStore.getAll();
+        request.onsuccess = (event) => resolve(event.target.result);
         request.onerror = (event) => {
-          reject(event.target.error);
+          console.error('Failed to get all data:', event.target.error);
+          resolve([]); // 返回空数组而不是阻塞
         };
-        request.onsuccess = (event) => {
-          resolve(event.target.result);
-        };
-      } else {
-        reject('DB is not open.');
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Failed to get data info:', error);
+      return [];
+    }
+  }
+
+  async clearDB() {
+    if (!this.db) await this.openDB();
+    if (this.db) {
+      const transaction = this.db.transaction(this.db.objectStoreNames, 'readwrite');
+      transaction.oncomplete = () => console.log('All stores cleared.');
+      Array.from(this.db.objectStoreNames).forEach((storeName) => {
+        transaction.objectStore(storeName).clear();
+      });
+    }
   }
 }
-IndexedDBManager.prototype.dbName = 'uni-data-manager';
-IndexedDBManager.prototype.dbVersion = 1;
-IndexedDBManager.prototype.db = null;
+
 export default IndexedDBManager;
