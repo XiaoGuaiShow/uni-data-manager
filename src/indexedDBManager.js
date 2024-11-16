@@ -5,6 +5,15 @@ class IndexedDBManager {
     this.db = null;
   }
 
+  _sanitizeData(data) {
+    try {
+      return JSON.parse(JSON.stringify(data)); // 简单克隆，只保留可序列化的部分
+    } catch (e) {
+      console.error('Data is not serializable:', data);
+      return null;
+    }
+  }
+
   async openDB() {
     if (this.db) return this.db; // 如果数据库已打开，直接返回
     return new Promise((resolve) => {
@@ -66,16 +75,22 @@ class IndexedDBManager {
   }
 
   async setDBData(storeName, key, value) {
+    const sanitizedValue = this._sanitizeData(value); // 确保数据可克隆
+    if (!sanitizedValue) {
+      console.error('Data could not be stored in IndexedDB:', value);
+      return;
+    }
+
     try {
       await this.ensureDBReady();
       const transaction = this.db.transaction(storeName, 'readwrite');
       const objectStore = transaction.objectStore(storeName);
-      objectStore.put(value, key);
+      objectStore.put(sanitizedValue, key);
     } catch (error) {
       if (error.name === 'InvalidStateError') {
         console.warn('Database connection was closed. Reopening...');
         await this.openDB(); // 重新打开连接
-        return this.setDBData(storeName, key, value); // 重试操作
+        return this.setDBData(storeName, key, sanitizedValue); // 重试操作
       }
       console.error('Failed to set data:', error);
     }
